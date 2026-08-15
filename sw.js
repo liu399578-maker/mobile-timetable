@@ -1,4 +1,4 @@
-const CACHE = 'timetable-2026-v6';
+const CACHE = 'timetable-2026-v7';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './timetable.ics'];
 
 self.addEventListener('install', event => {
