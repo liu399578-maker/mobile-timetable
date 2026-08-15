@@ -143,7 +143,7 @@
     main.scrollable { overflow-y: auto; scrollbar-width: none; }
     main.scrollable::-webkit-scrollbar { display: none; }
 
-    .week-view { min-height: 0; display: flex; flex-direction: column; }
+    .week-view { height: 100%; min-height: 0; display: flex; flex-direction: column; }
     .week-board {
       flex: 0 0 auto;
       min-height: 0;
@@ -190,6 +190,30 @@
     .course-chip:active { transform: translateY(1px); box-shadow: 0 2px 7px rgba(74,82,78,.10); }
     .band.empty::after { content: "·"; margin: auto; color: #c7c6bf; }
 
+    .next-card {
+      flex: 0 0 auto;
+      width: calc(100% - 4px);
+      min-height: 92px;
+      margin: auto 2px;
+      padding: 13px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid rgba(255,255,255,.95);
+      border-radius: 20px;
+      color: var(--ink);
+      background: rgba(255,254,251,.90);
+      box-shadow: var(--shadow);
+      text-align: left;
+      cursor: pointer;
+    }
+    .next-mark { flex: 0 0 auto; width: 48px; height: 48px; display: grid; place-items: center; border: 2px solid rgba(255,255,255,.82); border-radius: 16px; color: var(--next-ink); background: var(--next-bg); box-shadow: 0 5px 12px rgba(74,82,78,.11); font-size: 12px; font-weight: 900; }
+    .next-copy { min-width: 0; flex: 1 1 auto; }
+    .next-kicker { display: block; margin-bottom: 4px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; }
+    .next-copy strong { display: block; overflow: hidden; font-size: 15px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+    .next-meta { display: block; margin-top: 5px; overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .next-arrow { flex: 0 0 auto; color: #a7ada8; font-size: 20px; }
+
     .empty-state { height: 100%; display: grid; place-items: center; padding: 30px; border: 1px dashed var(--line); border-radius: 20px; color: var(--muted); background: var(--panel); text-align: center; }
     .empty-state b { display: block; margin-bottom: 6px; color: var(--ink); font-size: 18px; }
 
@@ -235,6 +259,8 @@
       .lane { grid-template-rows: 37px 76px 76px; }
       .week-board.with-evening .lane { grid-template-rows: 37px 72px 72px 66px; }
       .course-chip { padding-top: 3px; }
+      .next-card { min-height: 78px; padding: 9px 11px; }
+      .next-mark { width: 42px; height: 42px; border-radius: 14px; }
     }
 
     @media (min-width: 600px) {
@@ -309,10 +335,24 @@
     function fmt(d){return new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric'}).format(d)}
     function isoDay(d){const n=d.getUTCDay();return n===0?7:n}
     function bandFor(c){return c.start<=4?'morning':c.start<=10?'afternoon':'evening'}
+    function chinaClock(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).reduce((a,x)=>(a[x.type]=x.value,a),{});return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute)}
+    function courseClock(w,c,isEnd=false){const d=dateFor(w,c.day),time=isEnd?BELL[c.end][1]:BELL[c.start][0],[h,m]=time.split(':').map(Number);return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),h,m)}
     const state={week:currentWeek(),view:'week'};
 
     function chip(c){const [bg,ink]=COLORS[c.color];return `<button class="course-chip" data-course="${c.id}" aria-label="${c.name}，第${c.start}到${c.end}节，教室${c.room}" style="--course-bg:${bg};--course-ink:${ink}"><span class="chip-period">${c.start}—${c.end}节</span><strong>${c.short}</strong><span class="chip-room">教室 ${c.room}</span></button>`}
     function courseDetail(c){return `<p class="dialog-kicker">${DAYS[c.day-1]} · 第${c.start}—${c.end}节</p><h2>${c.name}</h2><div class="dialog-grid"><div><small>上课时间</small><b>${BELL[c.start][0]}—${BELL[c.end][1]}</b></div><div><small>教室</small><b>${c.room}</b></div><div><small>教师</small><b>${c.teacher}</b></div><div><small>教学周</small><b>${c.weeks}</b></div></div>${c.note?`<p>${c.note}</p>`:''}<button class="close" data-close="courseDialog">关闭</button>`}
+    function nextClassCard(){
+      const now=chinaClock();let found=null;
+      for(let week=1;week<=TOTAL_WEEKS;week++)for(const c of courses){
+        if(!c.active(week))continue;
+        const start=courseClock(week,c),end=courseClock(week,c,true);
+        if(now>=start&&now<=end){found={c,week,start,end,live:true};break}
+        if(start>now&&(!found||start<found.start))found={c,week,start,end,live:false};
+      }
+      if(!found)return `<div class="next-card" style="--next-bg:var(--c1);--next-ink:var(--c1i)"><span class="next-mark">完成</span><span class="next-copy"><span class="next-kicker">本学期</span><strong>课程已经全部结束</strong><span class="next-meta">愿这一学期收获满满</span></span></div>`;
+      const {c,start,end,live}=found,[bg,ink]=COLORS[c.color],dayStart=Date.UTC(new Date(start).getUTCFullYear(),new Date(start).getUTCMonth(),new Date(start).getUTCDate()),nowDate=new Date(now),todayStart=Date.UTC(nowDate.getUTCFullYear(),nowDate.getUTCMonth(),nowDate.getUTCDate()),gap=Math.round((dayStart-todayStart)/86400000),relative=gap===0?'今天':gap===1?'明天':gap===2?'后天':`${new Date(start).getUTCMonth()+1}月${new Date(start).getUTCDate()}日`;
+      return `<button class="next-card" data-course="${c.id}" style="--next-bg:${bg};--next-ink:${ink}" aria-label="${live?'正在上课':'下一节课'}，${c.name}"><span class="next-mark">${live?'上课中':relative}</span><span class="next-copy"><span class="next-kicker">${live?'正在上课':`下一节课 · ${DAYS[c.day-1]}`}</span><strong>${c.name}</strong><span class="next-meta">${BELL[c.start][0]}—${BELL[c.end][1]} · 教室 ${c.room} · ${c.teacher}</span></span><span class="next-arrow">›</span></button>`;
+    }
 
     function weekView(active){
       const today=chinaToday();
@@ -322,7 +362,7 @@
         const band=(key,label)=>{const cs=list.filter(c=>bandFor(c)===key);return `<div class="band ${cs.length?'':'empty'}" data-label="${label}">${cs.map(chip).join('')}</div>`};
         return `<section class="lane ${isToday?'today':''}"><div class="lane-head"><b>${DAYS[day-1]}</b><small>${fmt(date)}</small></div>${band('morning','上午')}${band('afternoon','下午')}${hasEvening?band('evening','晚上'):''}</section>`;
       }).join('');
-      return `<div class="week-view"><div class="week-board ${hasEvening?'with-evening':''}">${lanes}</div></div>`;
+      return `<div class="week-view"><div class="week-board ${hasEvening?'with-evening':''}">${lanes}</div>${nextClassCard()}</div>`;
     }
 
     function detailRow(c){return `<div class="detail-row"><div class="detail-time"><b>${c.start}—${c.end}节</b>${BELL[c.start][0]}<br>${BELL[c.end][1]}</div><div><h4>${c.name}</h4><div class="detail-meta">${c.room} · ${c.teacher} · ${c.weeks}</div></div></div>`}
