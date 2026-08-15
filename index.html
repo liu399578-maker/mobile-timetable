@@ -143,9 +143,9 @@
     main.scrollable { overflow-y: auto; scrollbar-width: none; }
     main.scrollable::-webkit-scrollbar { display: none; }
 
-    .week-view { min-height: 0; display: flex; flex-direction: column; }
+    .week-view { height: 100%; min-height: 0; display: flex; flex-direction: column; }
     .week-board {
-      flex: 0 0 auto;
+      flex: 1 1 auto;
       min-height: 0;
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -157,8 +157,7 @@
       box-shadow: var(--shadow);
     }
 
-    .lane { min-width: 0; display: grid; grid-template-rows: 44px 82px 82px; gap: 5px; }
-    .week-board.with-evening .lane { grid-template-rows: 44px 78px 78px 70px; }
+    .lane { min-width: 0; display: grid; grid-template-rows: 44px 1.08fr 1.3fr .72fr; gap: 5px; }
     .lane-head { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.9); border-radius: 12px; color: var(--muted); background: #efefe9; box-shadow: 0 3px 8px rgba(83,91,87,.04); }
     .lane-head b { color: var(--ink); font-size: 12px; }
     .lane-head small { margin-top: 1px; font-size: 9px; }
@@ -186,7 +185,9 @@
     }
     .course-chip strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: clamp(10px, 2.65vw, 12px); line-height: 1.18; letter-spacing: -.04em; word-break: break-all; }
     .course-chip .chip-period { display: inline-flex; width: fit-content; margin-bottom: 3px; padding: 1px 4px; border-radius: 6px; background: rgba(255,255,255,.34); font-size: 8px; font-weight: 900; opacity: .82; }
-    .course-chip .chip-room { display: block; margin-top: auto; padding-top: 3px; overflow: hidden; font-size: 8px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; opacity: .78; }
+    .course-chip .chip-time { display: block; margin-top: 6px; font-size: 8px; font-weight: 750; line-height: 1.25; opacity: .72; }
+    .course-chip .chip-room { display: block; margin-top: auto; padding-top: 3px; overflow: hidden; font-size: 8px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; opacity: .82; }
+    .course-chip .chip-teacher { display: block; margin-top: 2px; overflow: hidden; font-size: 8px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; opacity: .72; }
     .course-chip:active { transform: translateY(1px); box-shadow: 0 2px 7px rgba(74,82,78,.10); }
     .band.empty::after { content: "·"; margin: auto; color: #c7c6bf; }
 
@@ -232,8 +233,7 @@
       .weeknav button, .week-center { height: 37px; }
       .tabs { padding: 3px; }
       .tab { height: 30px; }
-      .lane { grid-template-rows: 37px 76px 76px; }
-      .week-board.with-evening .lane { grid-template-rows: 37px 72px 72px 66px; }
+      .lane { grid-template-rows: 37px 1.08fr 1.3fr .72fr; }
       .course-chip { padding-top: 3px; }
     }
 
@@ -311,18 +311,17 @@
     function bandFor(c){return c.start<=4?'morning':c.start<=10?'afternoon':'evening'}
     const state={week:currentWeek(),view:'week'};
 
-    function chip(c){const [bg,ink]=COLORS[c.color];return `<button class="course-chip" data-course="${c.id}" aria-label="${c.name}，第${c.start}到${c.end}节，教室${c.room}" style="--course-bg:${bg};--course-ink:${ink}"><span class="chip-period">${c.start}—${c.end}节</span><strong>${c.short}</strong><span class="chip-room">教室 ${c.room}</span></button>`}
+    function chip(c){const [bg,ink]=COLORS[c.color];return `<button class="course-chip" data-course="${c.id}" aria-label="${c.name}，第${c.start}到${c.end}节，${BELL[c.start][0]}到${BELL[c.end][1]}，教室${c.room}，教师${c.teacher}" style="--course-bg:${bg};--course-ink:${ink}"><span class="chip-period">${c.start}—${c.end}节</span><strong>${c.short}</strong><span class="chip-time">${BELL[c.start][0]}<br>${BELL[c.end][1]}</span><span class="chip-room">教室 ${c.room}</span><span class="chip-teacher">${c.teacher}</span></button>`}
     function courseDetail(c){return `<p class="dialog-kicker">${DAYS[c.day-1]} · 第${c.start}—${c.end}节</p><h2>${c.name}</h2><div class="dialog-grid"><div><small>上课时间</small><b>${BELL[c.start][0]}—${BELL[c.end][1]}</b></div><div><small>教室</small><b>${c.room}</b></div><div><small>教师</small><b>${c.teacher}</b></div><div><small>教学周</small><b>${c.weeks}</b></div></div>${c.note?`<p>${c.note}</p>`:''}<button class="close" data-close="courseDialog">关闭</button>`}
 
     function weekView(active){
       const today=chinaToday();
-      const hasEvening=active.some(c=>bandFor(c)==='evening');
       const lanes=[1,2,3,4,5].map(day=>{
         const list=active.filter(c=>c.day===day),date=dateFor(state.week,day),isToday=date.toDateString()===today.toDateString();
         const band=(key,label)=>{const cs=list.filter(c=>bandFor(c)===key);return `<div class="band ${cs.length?'':'empty'}" data-label="${label}">${cs.map(chip).join('')}</div>`};
-        return `<section class="lane ${isToday?'today':''}"><div class="lane-head"><b>${DAYS[day-1]}</b><small>${fmt(date)}</small></div>${band('morning','上午')}${band('afternoon','下午')}${hasEvening?band('evening','晚上'):''}</section>`;
+        return `<section class="lane ${isToday?'today':''}"><div class="lane-head"><b>${DAYS[day-1]}</b><small>${fmt(date)}</small></div>${band('morning','上午')}${band('afternoon','下午')}${band('evening','晚上')}</section>`;
       }).join('');
-      return `<div class="week-view"><div class="week-board ${hasEvening?'with-evening':''}">${lanes}</div></div>`;
+      return `<div class="week-view"><div class="week-board">${lanes}</div></div>`;
     }
 
     function detailRow(c){return `<div class="detail-row"><div class="detail-time"><b>${c.start}—${c.end}节</b>${BELL[c.start][0]}<br>${BELL[c.end][1]}</div><div><h4>${c.name}</h4><div class="detail-meta">${c.room} · ${c.teacher} · ${c.weeks}</div></div></div>`}
